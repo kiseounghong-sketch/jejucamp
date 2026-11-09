@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>가쓸신제 제주도 캠프</title>
+<meta name="description" content="2026 청산고등학교 「제주! 내가 계획하는 캠프」 가쓸신제 앱">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1B2A4A">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="제주 캠프">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.1/kakao.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<!-- 누구세요? (처음 한 번 이름 고르기) -->
+<div class="name-gate" id="nameGate">
+  <div class="name-gate-card">
+    <span class="badge">청산고등학교 · 가쓸신제</span>
+    <h2>누구세요?</h2>
+    <div class="person-grid" id="personGrid"></div>
+    <div class="pin-box" id="pinBox" hidden>
+      <p class="pin-label">선생님 비밀번호를 입력해주세요</p>
+      <input type="password" id="pinInput" class="pin-input" inputmode="numeric" autocomplete="off">
+      <div class="pin-actions">
+        <button type="button" class="pin-cancel" id="pinCancelBtn">뒤로</button>
+        <button type="button" id="pinOkBtn">확인</button>
+      </div>
+      <p class="pin-msg" id="pinMsg"></p>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+  <header class="ticket">
+    <div class="ticket-top">
+      <h1 class="trip-title">가쓸신제 제주도 캠프</h1>
+      <span class="ticket-top-right">
+        <span class="student-name-tag" id="meTag"></span>
+        <span class="trip-dates" id="tripDates">11.10 ~ 11.13</span>
+      </span>
+    </div>
+  </header>
+
+  <div class="urgent-toast" id="urgentToast">
+    <span class="urgent-toast-icon">!</span>
+    <span class="urgent-toast-text" id="urgentToastText"></span>
+  </div>
+
+  <!-- 긴급 SOS -->
+  <div class="notice-form-overlay" id="sosOverlay">
+    <div class="notice-form-card">
+      <h3>🆘 긴급 SOS</h3>
+      <ul class="contact-list" id="sosContactList"></ul>
+      <button type="button" class="sos-all-link" id="sosAllContactsBtn">전체 연락처 보기</button>
+      <div class="nf-actions">
+        <button type="button" id="closeSosBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 준비물 안내 -->
+  <div class="notice-form-overlay" id="itemGuideOverlay">
+    <div class="notice-form-card">
+      <h3 id="itemGuideTitle">안내</h3>
+      <ol class="item-guide-steps" id="itemGuideSteps"></ol>
+      <div class="nf-actions">
+        <button type="button" id="closeItemGuideBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="photo-lightbox" id="photoLightbox">
+    <img id="photoLightboxImg" alt="확대된 사진">
+  </div>
+
+  <!-- 위치 권한 안내 -->
+  <div class="notice-form-overlay" id="locationGuideOverlay">
+    <div class="notice-form-card">
+      <h3>위치 권한이 필요해요</h3>
+      <ol class="item-guide-steps">
+        <li>휴대폰 <b>설정 → 위치</b>가 꺼져 있다면 켜주세요.</li>
+        <li><b>설정 → 앱 → (지금 쓰는 브라우저) → 권한 → 위치</b>에서 "앱을 사용하는 동안 허용"으로 바꿔주세요.</li>
+        <li>아래 "다시 시도"를 누르면 브라우저가 위치 허용 팝업을 띄워요. 그때 꼭 "허용"을 눌러주세요.</li>
+      </ol>
+      <div class="nf-actions">
+        <button type="button" id="closeLocationGuideBtn">닫기</button>
+        <button type="button" class="btn-primary" id="retryLocationBtn">다시 시도</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 새 공지 (선생님·총괄·일정 담당) -->
+  <div class="notice-form-overlay" id="noticeFormOverlay">
+    <div class="notice-form-card">
+      <h3>새 공지 작성</h3>
+      <p class="nf-label">긴급 여부</p>
+      <div class="urgency-toggle" id="urgencyToggle">
+        <button type="button" class="active" data-val="false">일반</button>
+        <button type="button" data-val="true">긴급</button>
+      </div>
+      <p class="nf-label">제목</p>
+      <input type="text" class="nf-input" id="noticeTitleInput" maxlength="80" placeholder="예: 내일 아침 8시 식당 앞 집합">
+      <p class="nf-label">내용</p>
+      <textarea class="nf-textarea" id="noticeBodyInput" maxlength="1500" placeholder="팀에게 전달할 내용을 적어주세요."></textarea>
+      <p class="nf-label">사진 (선택)</p>
+      <div class="notice-photo-attach">
+        <label class="notice-photo-attach-btn">
+          <input type="file" accept="image/*" id="noticePhotoInput" hidden>
+          📷 사진 선택
+        </label>
+        <span class="notice-photo-attach-status" id="noticePhotoStatus"></span>
+      </div>
+      <div class="notice-photo-preview-wrap" id="noticePhotoPreviewWrap" style="display:none;">
+        <img id="noticePhotoPreview" alt="첨부한 사진 미리보기">
+        <button type="button" id="noticePhotoRemoveBtn">✕ 사진 제거</button>
+      </div>
+      <div class="nf-actions">
+        <button type="button" id="cancelNoticeBtn">취소</button>
+        <button type="button" class="btn-primary" id="submitNoticeBtn">등록</button>
+      </div>
+      <p class="form-msg" id="noticeStatusMsg"></p>
+    </div>
+  </div>
+
+  <!-- 집합 시간 등록 (선생님·총괄·일정 담당) -->
+  <div class="notice-form-overlay" id="assemblyFormOverlay">
+    <div class="notice-form-card">
+      <h3>집합 시간 등록</h3>
+      <p class="nf-label">집합 시각</p>
+      <input type="datetime-local" id="assemblyTimeInput" class="nf-input">
+      <p class="nf-label">집합 장소</p>
+      <input type="text" id="assemblyPlaceInput" class="nf-input" maxlength="60" placeholder="예: 동문재래시장 8번 출구">
+      <button type="button" id="captureAssemblyLocationBtn" class="location-capture-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        지금 서 있는 위치를 집합 장소로 등록
+      </button>
+      <p class="location-capture-status" id="assemblyLocationStatus"></p>
+      <div id="assemblyLocationMap" class="assembly-location-map" style="display:none;"></div>
+      <p class="location-capture-hint" id="assemblyLocationHint" style="display:none;">지도를 누르거나 마커를 끌어서 위치를 조정할 수 있어요.</p>
+      <div class="nf-actions">
+        <button type="button" id="cancelAssemblyBtn">취소</button>
+        <button type="button" class="btn-primary" id="assemblySubmitBtn">등록</button>
+      </div>
+      <p class="form-msg" id="assemblyStatusMsg"></p>
+    </div>
+  </div>
+
+  <!-- 숙소 정보 수정 (선생님) -->
+  <div class="notice-form-overlay" id="lodgeEditOverlay">
+    <div class="notice-form-card">
+      <h3 id="lodgeEditTitle">숙소 정보 수정</h3>
+      <p class="nf-label">숙소 이름</p>
+      <input type="text" id="lodgeNameInput" class="nf-input" maxlength="60">
+      <p class="nf-label">주소</p>
+      <input type="text" id="lodgeAddrInput" class="nf-input" maxlength="100">
+      <p class="nf-label">전화번호</p>
+      <input type="tel" id="lodgeTelInput" class="nf-input" maxlength="20" placeholder="예: 064-000-0000">
+      <div class="nf-actions">
+        <button type="button" id="cancelLodgeBtn">취소</button>
+        <button type="button" class="btn-primary" id="saveLodgeBtn">저장</button>
+      </div>
+      <p class="form-msg" id="lodgeMsg"></p>
+    </div>
+  </div>
+
+  <!-- 복사가 막힌 기기에서 직접 복사하기 -->
+  <div class="notice-form-overlay" id="copyOverlay">
+    <div class="notice-form-card">
+      <h3>아래 내용을 길게 눌러 복사하세요</h3>
+      <textarea class="nf-textarea copy-area" id="copyArea" readonly></textarea>
+      <div class="nf-actions">
+        <button type="button" id="closeCopyBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="content">
+
+    <!-- ===== 공지 ===== -->
+    <section id="panel-notice" class="panel active">
+      <div class="weather-card" id="weatherCard">
+        <p class="weather-title">제주 날씨 · 바다</p>
+        <div class="weather-days">
+          <div class="weather-day-col">
+            <div class="weather-day">
+              <p class="weather-day-label">오늘</p>
+              <span class="weather-icon" id="weatherIconToday"></span>
+              <p class="weather-temp" id="weatherTempToday">-</p>
+              <p class="weather-desc" id="weatherDescToday">-</p>
+            </div>
+            <p class="weather-sea" id="weatherSeaToday">-</p>
+          </div>
+          <div class="weather-divider"></div>
+          <div class="weather-day-col">
+            <div class="weather-day">
+              <p class="weather-day-label">내일</p>
+              <span class="weather-icon" id="weatherIconTomorrow"></span>
+              <p class="weather-temp" id="weatherTempTomorrow">-</p>
+              <p class="weather-desc" id="weatherDescTomorrow">-</p>
+            </div>
+            <p class="weather-sea" id="weatherSeaTomorrow">-</p>
+          </div>
+        </div>
+      </div>
+      <div class="quick-faq-row">
+        <button type="button" class="quick-faq-btn sos-btn" id="openSosBtn">🆘 SOS</button>
+        <button type="button" class="quick-faq-btn" id="openEmergencyFaqBtn">🚨 비상상황 FAQ</button>
+        <button type="button" class="quick-faq-btn" id="openMannerFaqBtn">🙏 매너·에티켓 FAQ</button>
+      </div>
+      <div class="assembly-card" id="assemblyCard" style="display:none;">
+        <button class="ac-delete-btn" id="deleteAssemblyBtn" type="button" title="집합 시간 삭제" aria-label="집합 시간 삭제" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
+        <div class="ac-main-row">
+          <div class="ac-countdown-col">
+            <p class="ac-label">집합까지 남은 시간</p>
+            <p class="ac-countdown" id="assemblyCountdown">--</p>
+          </div>
+          <div class="ac-info-col">
+            <div class="ac-info-item">
+              <p class="ac-place-label">집합 시간</p>
+              <p class="ac-place" id="assemblyTimeLabel">-</p>
+            </div>
+            <div class="ac-info-item">
+              <p class="ac-place-label">집합 장소</p>
+              <p class="ac-place" id="assemblyPlace">-</p>
+            </div>
+          </div>
+        </div>
+        <p class="ac-map-hint">📍 집합 장소를 누르면 카카오맵 길찾기가 열려요</p>
+      </div>
+      <div class="scroll-area">
+        <div id="homeCards"></div>
+        <div id="noticeList"></div>
+      </div>
+      <div class="fab-wrap" id="opsFabs" hidden>
+        <button class="fab fab-secondary" id="newAssemblyFab" type="button" title="집합 시간 등록" aria-label="집합 시간 등록">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        </button>
+        <button class="fab" id="newNoticeFab" type="button" title="새 공지" aria-label="새 공지">+</button>
+      </div>
+    </section>
+
+    <!-- ===== 일정 ===== -->
+    <section id="panel-schedule" class="panel">
+      <div class="day-pills" id="dayPills"></div>
+      <div class="view-toggle" id="viewToggle">
+        <button class="pill active" data-view="timeline">타임라인</button>
+        <button class="pill" data-view="findway">지도 및 길찾기</button>
+      </div>
+      <div class="scroll-area">
+        <p class="day-label" id="dayLabel"></p>
+        <ol class="timeline" id="timeline"></ol>
+        <div class="findway-view" id="findwayView" style="display:none;">
+          <div class="next-stop-card">
+            <div class="info">
+              <p class="label" id="nextStopLabel">지금 갈 곳</p>
+              <p class="name" id="nextStopName">-</p>
+            </div>
+            <a class="go-btn" id="nextStopGoBtn" href="#" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+              길찾기
+            </a>
+          </div>
+          <div class="map-section">
+            <div class="map-section-head">
+              <p class="label">오늘의 동선</p>
+              <button class="refresh-btn" id="refreshLocationBtn">내 위치 새로고침</button>
+            </div>
+            <div id="mapContainer"></div>
+            <p class="map-note" id="mapNote"></p>
+          </div>
+          <div id="findwayList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 기록 (활동 기록 · 사진 미션) ===== -->
+    <section id="panel-record" class="panel">
+      <div class="view-toggle" id="recordToggle">
+        <button class="pill active" data-view="notes">활동 기록</button>
+        <button class="pill" data-view="missions">사진 미션</button>
+      </div>
+      <div class="scroll-area">
+        <div id="recordNotesView">
+          <p class="question-line">관통 질문 · <b>제주는 무엇으로 먹고사는가</b> — 바다, 귤, 관광, 그리고 4.3</p>
+          <div class="day-pills" id="recDayPills"></div>
+          <div class="form-card">
+            <p class="nf-label">어디에서?</p>
+            <select id="recSpot" class="nf-input"></select>
+            <input type="text" id="recSpotCustom" class="nf-input rec-spot-custom" maxlength="40" placeholder="장소 이름을 적어주세요" hidden>
+            <p class="nf-label">어느 갈래와 이어지나요?</p>
+            <div class="chip-row" id="recBranch"></div>
+            <p class="nf-label">보고 · 배우고 · 느낀 것</p>
+            <textarea id="recText" class="nf-textarea" maxlength="1000" placeholder="예: 수월봉 절벽의 줄무늬는 화산재가 켜켜이 쌓인 층이라고 한다. 바다가 깎아 낸 단면에서 제주가 만들어진 과정을 볼 수 있었다."></textarea>
+            <button type="button" class="btn-primary btn-block" id="recSaveBtn">기록 남기기</button>
+            <p class="form-msg" id="recMsg"></p>
+          </div>
+          <div class="list-head">
+            <p class="section-label" id="recListTitle">팀 기록</p>
+            <span class="list-head-actions">
+              <button type="button" class="mini-btn" id="recCopyBtn" hidden>보고서용 복사</button>
+              <button type="button" class="mini-btn" id="recRefreshBtn">새로고침</button>
+            </span>
+          </div>
+          <div id="recList"></div>
+        </div>
+        <div id="recordMissionsView" hidden>
+          <a class="mission-gallery-btn" id="photoFolderLink" href="#" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            팀 사진 폴더 열기 (드라이브)
+          </a>
+          <div class="progress">
+            <div class="progress-bar"><div class="progress-fill" id="missionProgressFill"></div></div>
+            <p class="progress-text"><span id="missionCheckedCount">0</span>/<span id="missionTotalCount">0</span>개 미션 클리어</p>
+          </div>
+          <div id="missionList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 준비물 ===== -->
+    <section id="panel-checklist" class="panel">
+      <div class="progress">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <p class="progress-text"><span id="checkedCount">0</span>/<span id="totalCount">0</span>개 챙겼어요</p>
+      </div>
+      <div class="scroll-area">
+        <div class="amenity-card">
+          <p class="amenity-title">팀 공용으로 준비돼요 (따로 안 챙겨도 돼요)</p>
+          <div class="amenity-tags" id="teamItems"></div>
+        </div>
+        <div id="checklistGroups"></div>
+      </div>
+    </section>
+
+    <!-- ===== 더보기 ===== -->
+    <section id="panel-more" class="panel">
+      <div class="more-list" id="moreList"></div>
+      <div class="teacher-tools" id="teacherTools" hidden>
+        <p class="section-label">선생님 관리</p>
+        <button type="button" class="danger-link" data-reset="notices">공지·집합 시간 모두 지우기</button>
+        <button type="button" class="danger-link" data-reset="state">대체 일정·체크 상태 모두 지우기</button>
+      </div>
+      <button class="logout-link" id="switchUserBtn" type="button">다른 사람으로 바꾸기</button>
+      <p class="app-foot">청산고등학교 · 「제주! 내가 계획하는 캠프」 2026. 11. 10.(화) ~ 11. 13.(금)</p>
+    </section>
+
+    <section id="panel-roles" class="panel sub-panel">
+      <button class="back-btn" data-back><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>더보기</button>
+      <h2 class="sub-title">역할 분담</h2>
+      <p class="question-line">관통 질문 · <b>제주는 무엇으로 먹고사는가</b> — 바다, 귤, 관광, 그리고 4.3</p>
+      <div id="roleList"></div>
+    </section>
+
+    <section id="panel-budget" class="panel sub-panel">
+      <button class="back-btn" data-back><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>더보기</button>
+      <h2 class="sub-title">예산</h2>
+      <div class="budget-total-card">
+        <div class="bt-row">
+          <div><p class="bt-label">총 예산</p><p class="bt-amount" id="budgetTotal">-</p></div>
+          <div class="bt-right"><p class="bt-label">남은 돈</p><p class="bt-amount bt-left" id="budgetLeft">-</p></div>
+        </div>
+        <div class="bt-bar"><div class="bt-bar-fill" id="budgetBar"></div></div>
+        <p class="bt-note" id="budgetSpentNote">-</p>
+      </div>
+      <div class="form-card" id="expenseForm" hidden>
+        <p class="form-title">지출 기록하기</p>
+        <p class="nf-label">일차</p>
+        <div class="day-pills" id="expDayPills"></div>
+        <p class="nf-label">예산 항목</p>
+        <select id="expItem" class="nf-input"></select>
+        <p class="nf-label">사용처 (가게·업체 이름)</p>
+        <input type="text" id="expPlace" class="nf-input" maxlength="40" placeholder="예: 공항 순두부집">
+        <p class="nf-label">금액 (원)</p>
+        <input type="number" id="expAmount" class="nf-input" inputmode="numeric" min="0" placeholder="0">
+        <p class="nf-label">영수증 사진 (선택)</p>
+        <div class="notice-photo-attach">
+          <label class="notice-photo-attach-btn">
+            <input type="file" accept="image/*" id="expReceiptInput" hidden>
+            🧾 영수증 찍기
+          </label>
+          <span class="notice-photo-attach-status" id="expReceiptStatus"></span>
+        </div>
+        <p class="nf-label">메모 (선택)</p>
+        <input type="text" id="expMemo" class="nf-input" maxlength="80" placeholder="예: 7명 중식, 1명 추가 주문">
+        <button type="button" class="btn-primary btn-block" id="expSaveBtn">지출 저장</button>
+        <p class="form-msg" id="expMsg"></p>
+      </div>
+      <div class="list-head">
+        <p class="section-label">계획 대비 지출</p>
+        <span class="list-head-actions">
+          <button type="button" class="mini-btn" id="budgetCopyBtn" hidden>정산용 표 복사</button>
+          <button type="button" class="mini-btn" id="budgetRefreshBtn">새로고침</button>
+        </span>
+      </div>
+      <div class="day-pills" id="budgetDayPills"></div>
+      <ul class="budget-list" id="budgetList"></ul>
+    </section>
+
+    <section id="panel-lodging" class="panel sub-panel">
+      <button class="back-btn" data-back><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>더보기</button>
+      <h2 class="sub-title">숙소 안내 · 안전 체크</h2>
+      <div id="lodgeList"></div>
+    </section>
+
+    <section id="panel-health" class="panel sub-panel">
+      <button class="back-btn" data-back><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>더보기</button>
+      <h2 class="sub-title">밤 건강 체크</h2>
+      <p class="sub-desc" id="healthDesc">자기 전에 오늘 컨디션을 한 번 눌러주세요. 선생님만 볼 수 있어요.</p>
+      <div class="day-pills" id="healthDayPills"></div>
+      <div id="healthStudentView">
+        <div class="form-card">
+          <p class="nf-label">오늘 컨디션은?</p>
+          <div class="cond-btns" id="condBtns"></div>
+          <p class="nf-label">불편한 곳이 있나요? (여러 개 고를 수 있어요)</p>
+          <div class="chip-row" id="symptomChips"></div>
+          <p class="nf-label">선생님께 하고 싶은 말 (선택)</p>
+          <input type="text" id="healthMemo" class="nf-input" maxlength="100" placeholder="예: 저녁 먹고 배가 조금 아파요">
+          <button type="button" class="btn-primary btn-block" id="healthSaveBtn">보내기</button>
+          <p class="form-msg" id="healthMsg"></p>
+        </div>
+      </div>
+      <div id="healthTeacherView" hidden>
+        <div class="list-head">
+          <p class="section-label" id="healthListTitle">학생 컨디션</p>
+          <span class="list-head-actions"><button type="button" class="mini-btn" id="healthRefreshBtn">새로고침</button></span>
+        </div>
+        <div id="healthList"></div>
+      </div>
+    </section>
+
+    <section id="panel-shots" class="panel sub-panel">
+      <button class="back-btn" data-back><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>더보기</button>
+      <h2 class="sub-title">촬영 체크리스트</h2>
+      <div class="edit-guide" id="editGuide"></div>
+      <div class="day-pills" id="shotDayPills"></div>
+      <div class="progress progress-slim">
+        <div class="progress-bar"><div class="progress-fill" id="shotProgressFill"></div></div>
+        <p class="progress-text"><span id="shotCheckedCount">0</span>/<span id="shotTotalCount">0</span>개 촬영</p>
+      </div>
+      <div id="shotList"></div>
+    </section>
+
+    <section id="panel-faq" class="panel sub-panel">
+      <button class="back-btn" data-back><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>더보기</button>
+      <h2 class="sub-title">자주 묻는 질문</h2>
+      <div id="faqList"></div>
+    </section>
+
+    <section id="panel-emergency-faq" class="panel sub-panel">
+      <button class="back-btn" data-back="notice"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>공지</button>
+      <h2 class="sub-title">🚨 비상상황 FAQ</h2>
+      <div id="emergencyFaqList"></div>
+    </section>
+
+    <section id="panel-etiquette-faq" class="panel sub-panel">
+      <button class="back-btn" data-back="notice"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>공지</button>
+      <h2 class="sub-title">🙏 매너·에티켓 FAQ</h2>
+      <div id="mannerFaqList"></div>
+    </section>
+
+    <section id="panel-phrases" class="panel sub-panel">
+      <button class="back-btn" data-back><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>더보기</button>
+      <h2 class="sub-title">서바이벌 제주어</h2>
+      <div id="phraseList"></div>
+    </section>
+
+    <section id="panel-contacts" class="panel sub-panel">
+      <button class="back-btn" data-back><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>더보기</button>
+      <h2 class="sub-title">비상 연락망</h2>
+      <button type="button" id="kakaoSosBtn" class="kakao-sos-btn">
+        <svg viewBox="0 0 24 24" fill="#191919"><path d="M12 3c-5.52 0-10 3.58-10 8 0 2.86 1.8 5.37 4.5 6.83l-1.16 4.3c-.14.5.42.87.82.52l4.98-3.32c.28.02.56.03.86.03 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/></svg>
+        선생님께 카카오톡으로 내 위치 보내기
+      </button>
+      <ul class="contact-list" id="contactList"></ul>
+      <p class="emergency-note">긴급 상황(사고·분실·아픔)이 생기면 당황하지 말고 가장 먼저 지도교사(홍기성 선생님)께 바로 전화하세요. 응급 상황이면 119!</p>
+    </section>
+
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab active" data-panel="notice">
+      <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="ping" id="noticePing"></span></span>
+      공지
+    </button>
+    <button class="tab" data-panel="schedule">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+      일정
+    </button>
+    <button class="tab" data-panel="record">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+      기록
+    </button>
+    <button class="tab" data-panel="checklist">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l2.5 2.5L16 8"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
+      준비물
+    </button>
+    <button class="tab" data-panel="more">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      더보기
+    </button>
+  </nav>
+
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

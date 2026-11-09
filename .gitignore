@@ -1,0 +1,9 @@
+# Firebase
+.firebase/
+firebase-debug.log*
+firebase-debug.*.log*
+.firebaserc.local
+
+# 기타
+node_modules/
+.DS_Store
